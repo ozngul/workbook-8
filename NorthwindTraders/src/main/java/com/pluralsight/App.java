@@ -1,19 +1,17 @@
 package com.pluralsight;
 
+import org.apache.commons.dbcp2.BasicDataSource;
+
 import java.sql.*;
 import java.util.Scanner;
 
 public class App {
     public static void main(String[] args) {
-        String url = "jdbc:mysql://localhost:3306/northwind";
-        String username = "root";
-        String password = "ozancan261"; // kendi şifreni yaz
+        BasicDataSource dataSource = getDataSource();
 
-        Connection connection = null;
-        Scanner scanner = new Scanner(System.in);
+        try (Connection connection = dataSource.getConnection();
+             Scanner scanner = new Scanner(System.in)) {
 
-        try {
-            connection = DriverManager.getConnection(url, username, password);
             boolean running = true;
 
             while (running) {
@@ -47,19 +45,25 @@ public class App {
         } catch (SQLException e) {
             System.out.println("Veritabanı hatası!");
             e.printStackTrace();
-        } finally {
-            try {
-                if (connection != null) connection.close();
-                scanner.close();
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
         }
     }
 
-    // 1) Ürünleri listele
+    //  DataSource yapılandırması (Bağlantı Havuzu)
+    private static BasicDataSource getDataSource() {
+        BasicDataSource ds = new BasicDataSource();
+        ds.setUrl("jdbc:mysql://localhost:3306/northwind");
+        ds.setUsername("root");
+        ds.setPassword("ozancan261"); // buraya kendi şifreni yaz
+        ds.setMinIdle(5);
+        ds.setMaxIdle(10);
+        ds.setMaxOpenPreparedStatements(100);
+        return ds;
+    }
+
+    //  1. Ürünleri Listele
     private static void displayProducts(Connection conn) {
         String query = "SELECT ProductID, ProductName, UnitPrice, UnitsInStock FROM Products";
+
         try (Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(query)) {
 
@@ -81,9 +85,10 @@ public class App {
         }
     }
 
-    // 2) Müşterileri listele
+    //  2. Müşterileri Listele
     private static void displayCustomers(Connection conn) {
         String query = "SELECT ContactName, CompanyName, City, Country, Phone FROM Customers ORDER BY Country";
+
         try (Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(query)) {
 
@@ -108,7 +113,7 @@ public class App {
         }
     }
 
-    // 3) Kategorileri ve seçilen kategoriye göre ürünleri listele
+    //  3. Kategorileri Listele ve Seçilen Kategorideki Ürünleri Göster
     private static void displayCategoriesAndProductsByCategory(Connection conn, Scanner scanner) {
         String categoryQuery = "SELECT CategoryID, CategoryName FROM Categories ORDER BY CategoryID";
 
@@ -140,8 +145,7 @@ public class App {
             return;
         }
 
-        String productQuery = "SELECT ProductID, ProductName, UnitPrice, UnitsInStock " +
-                "FROM Products WHERE CategoryID = ?";
+        String productQuery = "SELECT ProductID, ProductName, UnitPrice, UnitsInStock FROM Products WHERE CategoryID = ?";
 
         try (PreparedStatement pstmt = conn.prepareStatement(productQuery)) {
             pstmt.setInt(1, selectedCategoryId);
