@@ -1,45 +1,103 @@
 package com.pluralsight;
 
 import java.sql.*;
+import java.util.Scanner;
 
 public class App {
     public static void main(String[] args) {
         String url = "jdbc:mysql://localhost:3306/northwind";
         String username = "root";
-        String password = "password"; // buraya kendi şifreni yaz
+        String password = "ozancan261"; // kendi şifren
+
+        Connection connection = null;
+        Scanner scanner = new Scanner(System.in);
 
         try {
-            Connection connection = DriverManager.getConnection(url, username, password);
-            System.out.println("Veritabanına başarıyla bağlanıldı!");
+            connection = DriverManager.getConnection(url, username, password);
 
-            String query = "SELECT ProductID, ProductName, UnitPrice, UnitsInStock FROM Products";
+            boolean running = true;
+            while (running) {
+                System.out.println("\n--- Northwind Ana Menü ---");
+                System.out.println("1) Display all products");
+                System.out.println("2) Display all customers");
+                System.out.println("0) Exit");
+                System.out.print("Select an option: ");
+                String choice = scanner.nextLine();
 
-            Statement statement = connection.createStatement();
-            ResultSet resultSet = statement.executeQuery(query);
-
-            System.out.println("\n--- Northwind Ürün Listesi (Stacked) ---");
-
-            while (resultSet.next()) {
-                int id = resultSet.getInt("ProductID");
-                String name = resultSet.getString("ProductName");
-                double price = resultSet.getDouble("UnitPrice");
-                int stock = resultSet.getInt("UnitsInStock");
-
-                System.out.println("Product Id: " + id);
-                System.out.println("Name: " + name);
-                System.out.println("Price: " + price);
-                System.out.println("Stock: " + stock);
-                System.out.println("------------------");
+                switch (choice) {
+                    case "1":
+                        displayProducts(connection);
+                        break;
+                    case "2":
+                        displayCustomers(connection);
+                        break;
+                    case "0":
+                        running = false;
+                        System.out.println("Çıkılıyor...");
+                        break;
+                    default:
+                        System.out.println("Geçersiz seçim. Lütfen tekrar deneyin.");
+                }
             }
 
+        } catch (SQLException e) {
+            System.out.println("Veritabanı hatası!");
+            e.printStackTrace();
+        } finally {
+            try {
+                if (connection != null) connection.close();
+                scanner.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        }
+    }
 
+    private static void displayProducts(Connection conn) {
+        String query = "SELECT ProductID, ProductName, UnitPrice, UnitsInStock FROM Products";
+        try (Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(query)) {
 
-            resultSet.close();
-            statement.close();
-            connection.close();
+            System.out.printf("%-5s %-30s %-10s %-10s\n", "ID", "Ürün Adı", "Fiyat", "Stok");
+            System.out.println("---------------------------------------------------------------");
+
+            while (rs.next()) {
+                int id = rs.getInt("ProductID");
+                String name = rs.getString("ProductName");
+                double price = rs.getDouble("UnitPrice");
+                int stock = rs.getInt("UnitsInStock");
+
+                System.out.printf("%-5d %-30s %-10.2f %-10d\n", id, name, price, stock);
+            }
 
         } catch (SQLException e) {
-            System.out.println("Veritabanı bağlantı hatası!");
+            System.out.println("Ürünler alınırken hata oluştu.");
+            e.printStackTrace();
+        }
+    }
+
+    private static void displayCustomers(Connection conn) {
+        String query = "SELECT ContactName, CompanyName, City, Country, Phone FROM Customers ORDER BY Country";
+        try (Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(query)) {
+
+            System.out.printf("%-25s %-30s %-15s %-15s %-15s\n",
+                    "Contact Name", "Company", "City", "Country", "Phone");
+            System.out.println("--------------------------------------------------------------------------------------");
+
+            while (rs.next()) {
+                String contact = rs.getString("ContactName");
+                String company = rs.getString("CompanyName");
+                String city = rs.getString("City");
+                String country = rs.getString("Country");
+                String phone = rs.getString("Phone");
+
+                System.out.printf("%-25s %-30s %-15s %-15s %-15s\n",
+                        contact, company, city, country, phone);
+            }
+
+        } catch (SQLException e) {
+            System.out.println("Müşteriler alınırken hata oluştu.");
             e.printStackTrace();
         }
     }
