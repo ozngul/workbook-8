@@ -12,6 +12,7 @@ public class App {
         try (Connection conn = dataSource.getConnection();
              Scanner scanner = new Scanner(System.in)) {
 
+            // 1. Kullanıcıdan soyad al
             System.out.print("Enter actor's last name: ");
             String lastName = scanner.nextLine();
 
@@ -35,28 +36,32 @@ public class App {
                 }
             }
 
-            System.out.print("\nEnter actor's first name: ");
-            String firstName = scanner.nextLine();
+            // 2. Kullanıcıdan actor ID al (güvenli şekilde)
+            System.out.print("\nEnter actor ID to view their movies: ");
+            int actorId;
+            try {
+                actorId = Integer.parseInt(scanner.nextLine());
+            } catch (NumberFormatException e) {
+                System.out.println("Invalid input. Please enter a valid number.");
+                return;
+            }
 
-            String getActorId = "SELECT actor_id FROM actor WHERE first_name = ? AND last_name = ?";
-            int actorId = -1;
-
-            try (PreparedStatement stmt = conn.prepareStatement(getActorId)) {
-                stmt.setString(1, firstName.toUpperCase());
-                stmt.setString(2, lastName.toUpperCase());
-
+            // 3. Actor ID gerçekten var mı kontrol et
+            String checkActorQuery = "SELECT COUNT(*) FROM actor WHERE actor_id = ?";
+            try (PreparedStatement stmt = conn.prepareStatement(checkActorQuery)) {
+                stmt.setInt(1, actorId);
                 try (ResultSet rs = stmt.executeQuery()) {
-                    if (rs.next()) {
-                        actorId = rs.getInt("actor_id");
-                    } else {
-                        System.out.println("No actor found with that full name.");
+                    rs.next();
+                    if (rs.getInt(1) == 0) {
+                        System.out.println("No actor found with ID: " + actorId);
                         return;
                     }
                 }
             }
 
+            // 4. Film bilgilerini getir ve yazdır
             String getFilms = """
-                SELECT f.title
+                SELECT f.film_id, f.title, f.description, f.release_year, f.length
                 FROM film f
                 JOIN film_actor fa ON f.film_id = fa.film_id
                 WHERE fa.actor_id = ?
@@ -70,7 +75,18 @@ public class App {
                     if (rs.next()) {
                         System.out.println("\nFilms featuring this actor:");
                         do {
-                            System.out.println("- " + rs.getString("title"));
+                            int filmId = rs.getInt("film_id");
+                            String title = rs.getString("title");
+                            String description = rs.getString("description");
+                            int releaseYear = rs.getInt("release_year");
+                            int length = rs.getInt("length");
+
+                            System.out.println("filmId: " + filmId);
+                            System.out.println("title: " + title);
+                            System.out.println("description: " + description);
+                            System.out.println("releaseYear: " + releaseYear);
+                            System.out.println("length: " + length);
+                            System.out.println("------------------------");
                         } while (rs.next());
                     } else {
                         System.out.println("This actor has no films listed.");
@@ -83,11 +99,12 @@ public class App {
         }
     }
 
+    //  DataSource ayarı
     private static BasicDataSource getDataSource() {
         BasicDataSource ds = new BasicDataSource();
         ds.setUrl("jdbc:mysql://localhost:3306/sakila");
         ds.setUsername("root");
-        ds.setPassword("ozancan261"); // kendi şifreni buraya yaz
+        ds.setPassword("ozancan261"); // buraya kendi şifreni yaz
         return ds;
     }
 }
